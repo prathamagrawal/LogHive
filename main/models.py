@@ -7,6 +7,7 @@ Base = declarative_base()
 
 class LoggingDetails(Base):
     __tablename__ = "logging_details"
+    __table_args__ = {"schema": "logs"}
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     service_name = Column(String, nullable=False)
     data = Column(String, nullable=False)
