@@ -1,5 +1,6 @@
 import pika
 import json
+import time
 from main.settings import settings
 
 internal_logger = settings.logger
@@ -7,30 +8,45 @@ internal_logger = settings.logger
 
 class QueueConfig:
     QUEUE_ARGUMENTS = {
-        "x-message-ttl": 604800000,  # 7 days in milliseconds
-        "x-max-length": 1000000,  # Max messages in queue
+        "x-message-ttl": 604800000,
+        "x-max-length": 1000000,
     }
 
     @staticmethod
     def declare_queue(channel, queue_name):
-        """Declare a queue with passive=True first to check if it exists"""
-        try:
-            # First, try to check if queue exists
-            channel.queue_declare(queue=queue_name, passive=True)
-        except Exception:
-            # If queue doesn't exist, create it with our parameters
-            channel.queue_declare(
-                queue=queue_name, durable=True, arguments=QueueConfig.QUEUE_ARGUMENTS
-            )
+        """Declare a queue with proper error handling"""
+        channel.queue_declare(
+            queue=queue_name,
+            durable=True,
+            arguments=QueueConfig.QUEUE_ARGUMENTS
+        )
 
 
 class LoggerConsumer:
-    def __init__(self, service_name=None):
+    def __init__(self, service_name=None, max_retries=5, retry_delay=5):
         self.rabbitmq_url = settings.get_queue_url
         self.service_name = service_name
         self.connection = None
         self.channel = None
-        self._setup_connection()
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self._setup_connection_with_retry()
+
+    def _setup_connection_with_retry(self):
+        retries = 0
+        while retries < self.max_retries:
+            try:
+                self._setup_connection()
+                return
+            except Exception as e:
+                retries += 1
+                internal_logger.error(f"Connection attempt {retries} failed: {str(e)}")
+                if retries < self.max_retries:
+                    internal_logger.info(f"Retrying in {self.retry_delay} seconds...")
+                    time.sleep(self.retry_delay)
+                else:
+                    internal_logger.error("Max retries reached. Failed to establish connection.")
+                    raise
 
     def _setup_connection(self):
         try:
@@ -41,17 +57,20 @@ class LoggerConsumer:
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
-            # Declare exchange
             self.channel.exchange_declare(
-                exchange="logs_exchange", exchange_type="direct", durable=True
+                exchange="logs_exchange",
+                exchange_type="direct",
+                durable=True
             )
 
             self.queues = []
             if self.service_name:
                 for level in ["info", "error", "warning"]:
                     queue_name = f"{self.service_name}_{level}_logs"
+                    # Declare queue
                     QueueConfig.declare_queue(self.channel, queue_name)
 
+                    # Bind queue to exchange
                     self.channel.queue_bind(
                         exchange="logs_exchange",
                         queue=queue_name,
@@ -59,21 +78,21 @@ class LoggerConsumer:
                     )
                     self.queues.append(queue_name)
             else:
-                # For listening to all services
                 queue_name = "all_logs"
                 QueueConfig.declare_queue(self.channel, queue_name)
-
                 self.channel.queue_bind(
-                    exchange="logs_exchange", queue=queue_name, routing_key="#"
+                    exchange="logs_exchange",
+                    queue=queue_name,
+                    routing_key="#"
                 )
                 self.queues.append(queue_name)
 
-            internal_logger.info(
-                f"Log consumer ready. Listening to queues: {self.queues}"
-            )
+            internal_logger.info(f"Log consumer ready. Listening to queues: {self.queues}")
 
         except Exception as e:
             internal_logger.error(f"Failed to setup RabbitMQ connection: {str(e)}")
+            if self.connection and not self.connection.is_closed:
+                self.connection.close()
             raise
 
     def consume(self, callback=None):
@@ -85,11 +104,17 @@ class LoggerConsumer:
                 internal_logger.error(f"Error processing log: {str(e)}")
 
         try:
+            if not self.channel or self.channel.is_closed:
+                internal_logger.warning("Channel is closed, attempting to reconnect...")
+                self._setup_connection_with_retry()
+
             consume_callback = callback or default_callback
 
             for queue in self.queues:
                 self.channel.basic_consume(
-                    queue=queue, on_message_callback=consume_callback, auto_ack=True
+                    queue=queue,
+                    on_message_callback=consume_callback,
+                    auto_ack=True
                 )
 
             internal_logger.info("Starting to consume messages...")
@@ -107,7 +132,15 @@ class LoggerConsumer:
                 internal_logger.error(f"Error closing connection: {str(e)}")
 
 
-# Example usage
 if __name__ == "__main__":
-    consumer = LoggerConsumer("flask_service")
-    consumer.consume()
+    while True:
+        try:
+            consumer = LoggerConsumer("flask_service")
+            consumer.consume()
+        except KeyboardInterrupt:
+            internal_logger.info("Shutting down consumer...")
+            break
+        except Exception as e:
+            internal_logger.error(f"Consumer error: {str(e)}")
+            internal_logger.info("Restarting consumer in 5 seconds...")
+            time.sleep(5)
