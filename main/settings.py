@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     @property
     def get_queue_url(self) -> str:
-        return f"amqp://{self.queue_user}:{self.queue_password}@{self.queue_host}:{self.queue_port}"
+        return f"amqp://{self.queue_user}:{self.queue_password}@{self.queue_host}:{self.queue_port}/"
 
 
 settings = Settings()
