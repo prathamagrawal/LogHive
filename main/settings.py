@@ -1,7 +1,13 @@
+import logging
+import colorlog
+import sys
 from pydantic_settings import BaseSettings
+
+internal_logger = logging.getLogger("internal_logger")
 
 
 class Settings(BaseSettings):
+    log_level: str
     postgres_db_host: str
     postgres_db_name: str
     postgres_db_user: str
@@ -26,6 +32,54 @@ class Settings(BaseSettings):
     @property
     def get_queue_url(self) -> str:
         return f"amqp://{self.queue_user}:{self.queue_password}@{self.queue_host}:{self.queue_port}/"
+
+    @property
+    def logger(self):
+        """Returns a configured logger instance with colors."""
+
+        def configure_logger(level=logging.INFO):
+            if internal_logger.hasHandlers():
+                internal_logger.handlers.clear()
+
+            internal_logger.setLevel(level)
+
+            log_colors = {
+                "DEBUG": "cyan",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red",
+            }
+
+            formatter = colorlog.ColoredFormatter(
+                fmt="%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(asctime)s%(reset)s %(white)s%(message)s%(reset)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+                log_colors=log_colors,
+                secondary_log_colors={},
+                style="%",
+                reset=True,
+            )
+
+            console_handler = colorlog.StreamHandler(stream=sys.stderr)
+            console_handler.setFormatter(formatter)
+            console_handler.terminator = "\n"
+            console_handler.emit = lambda record: sys.stderr.write(
+                console_handler.format(record) + console_handler.terminator
+            )
+            internal_logger.addHandler(console_handler)
+
+        log_level_map = {
+            "DEBUG": logging.DEBUG,
+            "INFO": logging.INFO,
+            "WARNING": logging.WARNING,
+            "ERROR": logging.ERROR,
+            "CRITICAL": logging.CRITICAL,
+        }
+
+        level = log_level_map.get(self.log_level.upper(), logging.INFO)
+        configure_logger(level)
+
+        return internal_logger
 
 
 settings = Settings()

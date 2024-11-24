@@ -2,6 +2,28 @@ import pika
 import json
 from main.settings import settings
 
+internal_logger = settings.logger
+
+
+class QueueConfig:
+    QUEUE_ARGUMENTS = {
+        "x-message-ttl": 604800000,  # 7 days in milliseconds
+        "x-max-length": 1000000,  # Max messages in queue
+    }
+
+    @staticmethod
+    def declare_queue(channel, queue_name):
+        """Declare a queue with passive=True first to check if it exists"""
+        try:
+            # First, try to check if queue exists
+            channel.queue_declare(queue=queue_name, passive=True)
+        except Exception:
+            # If queue doesn't exist, create it with our parameters
+            channel.queue_declare(
+                queue=queue_name, durable=True, arguments=QueueConfig.QUEUE_ARGUMENTS
+            )
+
+
 class LoggerConsumer:
     def __init__(self, service_name=None):
         self.rabbitmq_url = settings.get_queue_url
@@ -12,77 +34,80 @@ class LoggerConsumer:
 
     def _setup_connection(self):
         try:
-            self.connection = pika.BlockingConnection(
-                pika.URLParameters(self.rabbitmq_url)
-            )
+            params = pika.URLParameters(self.rabbitmq_url)
+            params.heartbeat = 600
+            params.blocked_connection_timeout = 300
+
+            self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
-            # Declare the same exchange as in the LoggerClient
+            # Declare exchange
             self.channel.exchange_declare(
                 exchange="logs_exchange", exchange_type="direct", durable=True
             )
 
-            # Create a unique queue for this consumer
-            result = self.channel.queue_declare(queue='', exclusive=True)
-            self.queue_name = result.method.queue
-
-            # Bind to all logs if no specific service is provided
+            self.queues = []
             if self.service_name:
-                binding_keys = [
-                    f"{self.service_name}.info",
-                    f"{self.service_name}.error",
-                    f"{self.service_name}.warning"
-                ]
+                for level in ["info", "error", "warning"]:
+                    queue_name = f"{self.service_name}_{level}_logs"
+                    QueueConfig.declare_queue(self.channel, queue_name)
+
+                    self.channel.queue_bind(
+                        exchange="logs_exchange",
+                        queue=queue_name,
+                        routing_key=f"{self.service_name}.{level}",
+                    )
+                    self.queues.append(queue_name)
             else:
-                # Bind to all logs from all services
-                binding_keys = ['#']
+                # For listening to all services
+                queue_name = "all_logs"
+                QueueConfig.declare_queue(self.channel, queue_name)
 
-            for binding_key in binding_keys:
                 self.channel.queue_bind(
-                    exchange="logs_exchange",
-                    queue=self.queue_name,
-                    routing_key=binding_key
+                    exchange="logs_exchange", queue=queue_name, routing_key="#"
                 )
+                self.queues.append(queue_name)
 
-            print(f"Log consumer ready. Waiting for logs...")
+            internal_logger.info(
+                f"Log consumer ready. Listening to queues: {self.queues}"
+            )
 
         except Exception as e:
-            print(f"Failed to setup RabbitMQ connection: {e}")
+            internal_logger.error(f"Failed to setup RabbitMQ connection: {str(e)}")
+            raise
 
     def consume(self, callback=None):
         def default_callback(ch, method, properties, body):
             try:
                 log_data = json.loads(body)
-                print(f"Received log: {log_data}")
-                # You can add more sophisticated log processing here
+                internal_logger.info(f"Received log: {log_data}")
             except Exception as e:
-                print(f"Error processing log: {e}")
+                internal_logger.error(f"Error processing log: {str(e)}")
 
         try:
-            # Use provided callback or default
             consume_callback = callback or default_callback
 
-            self.channel.basic_consume(
-                queue=self.queue_name,
-                on_message_callback=consume_callback,
-                auto_ack=True
-            )
+            for queue in self.queues:
+                self.channel.basic_consume(
+                    queue=queue, on_message_callback=consume_callback, auto_ack=True
+                )
 
+            internal_logger.info("Starting to consume messages...")
             self.channel.start_consuming()
 
         except Exception as e:
-            print(f"Error in log consumption: {e}")
+            internal_logger.error(f"Error in log consumption: {str(e)}")
+            raise
 
     def __del__(self):
         if self.connection and not self.connection.is_closed:
-            self.connection.close()
+            try:
+                self.connection.close()
+            except Exception as e:
+                internal_logger.error(f"Error closing connection: {str(e)}")
+
 
 # Example usage
 if __name__ == "__main__":
-    # Consume logs from all services
-    consumer = LoggerConsumer()
+    consumer = LoggerConsumer("flask_service")
     consumer.consume()
-
-    # Or consume logs from a specific service
-    # consumer = LoggerConsumer(service_name="user_service")
-    # consumer.consume()
