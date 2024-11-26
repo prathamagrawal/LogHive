@@ -2,6 +2,7 @@ import pika
 import json
 import time
 from main.settings import settings
+from main.utils import write_to_db
 
 internal_logger = settings.logger
 
@@ -100,6 +101,7 @@ class LoggerConsumer:
             try:
                 log_data = json.loads(body)
                 internal_logger.info(f"Received log: {log_data}")
+                write_to_db(log_data)
             except Exception as e:
                 internal_logger.error(f"Error processing log: {str(e)}")
 

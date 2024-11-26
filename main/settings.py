@@ -2,6 +2,9 @@ import logging
 import colorlog
 import sys
 from pydantic_settings import BaseSettings
+from contextlib import contextmanager
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
 
 internal_logger = logging.getLogger("internal_logger")
 
@@ -18,6 +21,7 @@ class Settings(BaseSettings):
     queue_host: str
     queue_port: str
 
+
     class Config:
         env_file = "../config.env"
 
@@ -32,6 +36,20 @@ class Settings(BaseSettings):
     @property
     def get_queue_url(self) -> str:
         return f"amqp://{self.queue_user}:{self.queue_password}@{self.queue_host}:{self.queue_port}/"
+
+    @contextmanager
+    def get_session(self):
+        engine = create_engine(self.database_url())
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        try:
+            yield session
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
     @property
     def logger(self):
