@@ -1,6 +1,7 @@
 alembic==1.14.0
 annotated-types==0.7.0
 anyio==4.6.2.post1
+asyncpg==0.30.0
 black==24.10.0
 blinker==1.9.0
 certifi==2024.8.30

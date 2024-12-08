@@ -1,8 +1,9 @@
 import pika
 import json
 import time
+import asyncio
 from main.settings import settings
-from main.utils import write_to_db
+from main.utils import log_to_db
 
 internal_logger = settings.logger
 
@@ -101,7 +102,10 @@ class LoggerConsumer:
             try:
                 log_data = json.loads(body)
                 internal_logger.info(f"Received log: {log_data}")
-                write_to_db(log_data)
+                try:
+                    asyncio.run(log_to_db(log_data))
+                except Exception as e:
+                    print(f"Failed to log to database: {e}")
             except Exception as e:
                 internal_logger.error(f"Error processing log: {str(e)}")
 
