@@ -73,7 +73,7 @@ class LoggerClient:
                 self._setup_connection()
             threading.Event().wait(5)
 
-    def log(self, level, message, extra=None):
+    def log(self, level, message, information=None):
         if not self._channel:
             internal_logger.error(f"Logging failed - no connection: {message}")
             return
@@ -85,7 +85,7 @@ class LoggerClient:
                 "service": self.service_name,
                 "level": level,
                 "message": message,
-                "extra": extra or {},
+                "information": information or {},
                 "timestamp": str(datetime.now()),
             }
 

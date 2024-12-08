@@ -1,6 +1,7 @@
 from flask import Flask, jsonify, request
 from loggerclient.pythonlogger import LoggerClient
 import os
+import traceback
 
 app = Flask(__name__)
 logger = LoggerClient("flask_service")
@@ -24,6 +25,20 @@ def get_users():
     except Exception as e:
         logger.log("ERROR", "Failed to retrieve users", {"error": str(e)})
         return jsonify({"error": "Internal Server Error"}), 500
+
+
+@app.route("/error", methods=["GET"])
+def get_error():
+    logger.log(
+        "WARNING", "Users retrieved successfully", {"user_count": len(users)}
+    )
+    try:
+        print(10 / 0)  ## Manually triggering error for traceback logs
+        return jsonify(users)
+    except ZeroDivisionError as e:
+        logger.log("ERROR", f"Traceback for error: {str(e)}", information={"error": traceback.format_exc()})
+        logger.log("ERROR", message=str(e), information={"error": str(e)})
+        return jsonify({"error": str(e)})
 
 
 @app.route("/users", methods=["POST"])

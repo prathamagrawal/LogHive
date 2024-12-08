@@ -13,3 +13,6 @@ class LoggingDetails(Base):
     data = Column(String, nullable=False)
     timestamp = Column(DateTime(timezone=True), nullable=False)
     status = Column(String, nullable=False)
+
+    #2nd migration
+    information = Column(String, nullable=True)

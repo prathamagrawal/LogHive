@@ -26,6 +26,14 @@ class Settings(BaseSettings):
         env_file = "../config.env"
 
     @property
+    def get_sync_database_url(self) -> str:
+        return (
+            f"postgresql+psycopg2://{self.postgres_db_user}:"
+            f"{self.postgres_db_password}@{self.postgres_db_host}:{self.postgres_db_port}/"
+            f"{self.postgres_db_name}"
+        )
+
+    @property
     def database_url(self) -> str:
         return (
             f"postgresql+asyncpg://{self.postgres_db_user}:"
