@@ -15,3 +15,8 @@ alembic revision --autogenerate -m "message"
 alembic upgrade head
 #to run migrations
 ```
+
+
+# Todo 
+1. Requeue messages in a different queue to consume in case of any failures
+2. 

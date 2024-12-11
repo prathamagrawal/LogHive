@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     queue_password: str
     queue_host: str
     queue_port: str
-
+    queue_max_size: int
+    consumer_batch_size: int
 
     class Config:
         env_file = "../config.env"
@@ -79,7 +80,6 @@ class Settings(BaseSettings):
 
             formatter = colorlog.ColoredFormatter(
                 fmt="%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(asctime)s%(reset)s %(white)s%(message)s%(reset)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
                 log_colors=log_colors,
                 secondary_log_colors={},
                 style="%",
