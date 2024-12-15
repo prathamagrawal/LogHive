@@ -29,9 +29,7 @@ class DatabaseManager:
             pool_recycle=3600,
         )
         self.AsyncSessionLocal = async_sessionmaker(
-            bind=self.async_engine,
-            class_=AsyncSession,
-            expire_on_commit=False
+            bind=self.async_engine, class_=AsyncSession, expire_on_commit=False
         )
 
     async def write_to_db(self, log_data):
@@ -43,11 +41,15 @@ class DatabaseManager:
         async with self.AsyncSessionLocal() as session:
             try:
                 entry = LoggingDetails(
-                    service_name=log_data.get('service', 'Unknown'),
-                    data=log_data.get('message', {}),
-                    timestamp=parse_timestamp(log_data.get('timestamp', datetime.utcnow())),
-                    status=log_data.get('level', 'INFO'),
-                    information=str(log_data.get('information', {}),)
+                    service_name=log_data.get("service", "Unknown"),
+                    data=log_data.get("message", {}),
+                    timestamp=parse_timestamp(
+                        log_data.get("timestamp", datetime.utcnow())
+                    ),
+                    status=log_data.get("level", "INFO"),
+                    information=str(
+                        log_data.get("information", {}),
+                    ),
                 )
                 session.add(entry)
                 await session.commit()

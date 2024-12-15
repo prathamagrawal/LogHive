@@ -1,6 +1,7 @@
 import asyncio
-from main.settings import settings,internal_logger
+from main.settings import settings, internal_logger
 from main.database import DatabaseManager
+
 
 async def log_to_db(log_data):
     """
@@ -16,5 +17,4 @@ async def log_to_db(log_data):
         await db_manager.write_to_db(log_data)
         internal_logger.info("Log successfully written to database")
     except Exception as e:
-        raise(f"Error writing log to database: {e}")
-
+        raise (f"Error writing log to database: {e}")

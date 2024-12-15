@@ -14,5 +14,5 @@ class LoggingDetails(Base):
     timestamp = Column(DateTime(timezone=True), nullable=False)
     status = Column(String, nullable=False)
 
-    #2nd migration
+    # 2nd migration
     information = Column(String, nullable=True)
