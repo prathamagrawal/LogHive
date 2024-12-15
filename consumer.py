@@ -20,21 +20,22 @@ class QueueConfig:
     def declare_queue(channel, queue_name):
         """Declare a queue with proper error handling"""
         channel.queue_declare(
-            queue=queue_name,
-            durable=True,
-            arguments=QueueConfig.QUEUE_ARGUMENTS
+            queue=queue_name, durable=True, arguments=QueueConfig.QUEUE_ARGUMENTS
         )
 
 
 class Consumer:
-    def __init__(self, service_name=None,
-                 max_workers=10,  # Configurable thread pool size
-                 batch_size=200,  # Number of messages to process in a batch
-                 max_queue_size=100000000,  # Maximum queue size before backpressure
-                 max_retries=5,
-                 retry_delay=5):
+    def __init__(
+        self,
+        service_names=None,
+        max_workers=10,  # Configurable thread pool size
+        batch_size=200,  # Number of messages to process in a batch
+        max_queue_size=100000000,  # Maximum queue size before backpressure
+        max_retries=5,
+        retry_delay=5,
+    ):
         self.rabbitmq_url = settings.get_queue_url
-        self.service_name = service_name
+        self.service_names = service_names
         self.max_workers = max_workers
         self.batch_size = batch_size
         self.max_queue_size = max_queue_size
@@ -64,7 +65,9 @@ class Consumer:
                     internal_logger.info(f"Retrying in {self.retry_delay} seconds...")
                     time.sleep(self.retry_delay)
                 else:
-                    internal_logger.error("Max retries reached. Failed to establish connection.")
+                    internal_logger.error(
+                        "Max retries reached. Failed to establish connection."
+                    )
                     raise
 
     def _setup_connection(self):
@@ -77,33 +80,32 @@ class Consumer:
             self.channel = self.connection.channel()
 
             self.channel.exchange_declare(
-                exchange="logs_exchange",
-                exchange_type="direct",
-                durable=True
+                exchange="logs_exchange", exchange_type="direct", durable=True
             )
 
             self.queues.clear()
-            if self.service_name:
-                for level in ["info", "error", "warning"]:
-                    queue_name = f"{self.service_name}_{level}_logs"
-                    QueueConfig.declare_queue(self.channel, queue_name)
-                    self.channel.queue_bind(
-                        exchange="logs_exchange",
-                        queue=queue_name,
-                        routing_key=f"{self.service_name}.{level}",
-                    )
-                    self.queues.append(queue_name)
+            if self.service_names:
+                for service_name in self.service_names:
+                    for level in ["info", "error", "warning", "debug", "critical"]:
+                        queue_name = f"{service_name}_{level}_logs"
+                        QueueConfig.declare_queue(self.channel, queue_name)
+                        self.channel.queue_bind(
+                            exchange="logs_exchange",
+                            queue=queue_name,
+                            routing_key=f"{service_name}.{level}",
+                        )
+                        self.queues.append(queue_name)
             else:
                 queue_name = "all_logs"
                 QueueConfig.declare_queue(self.channel, queue_name)
                 self.channel.queue_bind(
-                    exchange="logs_exchange",
-                    queue=queue_name,
-                    routing_key="#"
+                    exchange="logs_exchange", queue=queue_name, routing_key="#"
                 )
                 self.queues.append(queue_name)
 
-            internal_logger.info(f"Log consumer ready. Listening to queues: {self.queues}")
+            internal_logger.info(
+                f"Log consumer ready. Listening to queues: {self.queues}"
+            )
 
         except Exception as e:
             internal_logger.error(f"Failed to setup RabbitMQ connection: {str(e)}")
@@ -150,26 +152,23 @@ class Consumer:
         try:
             channel = connection.channel()
             channel.exchange_declare(
-                exchange="logs_exchange",
-                exchange_type="direct",
-                durable=True
+                exchange="logs_exchange", exchange_type="direct", durable=True
             )
-            if self.service_name:
-                for level in ["info", "error", "warning"]:
-                    queue_name = f"{self.service_name}_{level}_logs"
-                    QueueConfig.declare_queue(channel, queue_name)
-                    channel.queue_bind(
-                        exchange="logs_exchange",
-                        queue=queue_name,
-                        routing_key=f"{self.service_name}.{level}",
-                    )
+            if self.service_names:
+                for service_name in self.service_names:
+                    for level in ["info", "error", "warning", "debug", "critical"]:
+                        queue_name = f"{service_name}_{level}_logs"
+                        QueueConfig.declare_queue(channel, queue_name)
+                        channel.queue_bind(
+                            exchange="logs_exchange",
+                            queue=queue_name,
+                            routing_key=f"{service_name}.{level}",
+                        )
             else:
                 queue_name = "all_logs"
                 QueueConfig.declare_queue(channel, queue_name)
                 channel.queue_bind(
-                    exchange="logs_exchange",
-                    queue=queue_name,
-                    routing_key="#"
+                    exchange="logs_exchange", queue=queue_name, routing_key="#"
                 )
 
             def on_message(ch, method, properties, body):
@@ -179,7 +178,9 @@ class Consumer:
                         try:
                             self.message_queue.put_nowait(log_data)
                         except queue.Full:
-                            internal_logger.warning("Message queue full, dropping message")
+                            internal_logger.warning(
+                                "Message queue full, dropping message"
+                            )
                     except Exception as queue_error:
                         internal_logger.error(f"Error queueing message: {queue_error}")
                 except Exception as e:
@@ -187,9 +188,7 @@ class Consumer:
 
             for queue_name in self.queues:
                 channel.basic_consume(
-                    queue=queue_name,
-                    on_message_callback=on_message,
-                    auto_ack=True
+                    queue=queue_name, on_message_callback=on_message, auto_ack=True
                 )
             internal_logger.info("Starting message consumption...")
             channel.start_consuming()
@@ -207,15 +206,13 @@ class Consumer:
 
         # Start consumer thread
         self.consumer_thread = threading.Thread(
-            target=self._consumer_worker,
-            daemon=True
+            target=self._consumer_worker, daemon=True
         )
         self.consumer_thread.start()
 
         # Start processor thread
         self.processor_thread = threading.Thread(
-            target=self._processor_worker,
-            daemon=True
+            target=self._processor_worker, daemon=True
         )
         self.processor_thread.start()
 
@@ -249,9 +246,9 @@ class Consumer:
 if __name__ == "__main__":
     while True:
         consumer = Consumer(
-            service_name="flask_service",
+            service_names=settings.get_service_names,
             batch_size=settings.consumer_batch_size,
-            max_queue_size=settings.queue_max_size
+            max_queue_size=settings.queue_max_size,
         )
         try:
             consumer.start()

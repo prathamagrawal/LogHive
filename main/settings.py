@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     queue_port: str
     queue_max_size: int
     consumer_batch_size: int
+    service_names: str
 
     class Config:
         env_file = "../config.env"
@@ -106,6 +107,13 @@ class Settings(BaseSettings):
         configure_logger(level)
 
         return internal_logger
+
+    @property
+    def get_service_names(self):
+        if self.service_names:
+            return self.service_names.split(",")
+        else:
+            return None
 
 
 settings = Settings()
