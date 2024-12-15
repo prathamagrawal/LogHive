@@ -1,5 +1,4 @@
 from main.models import LoggingDetails
-
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 
@@ -43,12 +42,12 @@ class DatabaseManager:
         """
         async with self.AsyncSessionLocal() as session:
             try:
-
                 entry = LoggingDetails(
                     service_name=log_data.get('service', 'Unknown'),
                     data=log_data.get('message', {}),
                     timestamp=parse_timestamp(log_data.get('timestamp', datetime.utcnow())),
-                    status=log_data.get('level', 'INFO')
+                    status=log_data.get('level', 'INFO'),
+                    information=str(log_data.get('information', {}),)
                 )
                 session.add(entry)
                 await session.commit()

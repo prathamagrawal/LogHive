@@ -20,10 +20,19 @@ class Settings(BaseSettings):
     queue_password: str
     queue_host: str
     queue_port: str
-
+    queue_max_size: int
+    consumer_batch_size: int
 
     class Config:
         env_file = "../config.env"
+
+    @property
+    def get_sync_database_url(self) -> str:
+        return (
+            f"postgresql+psycopg2://{self.postgres_db_user}:"
+            f"{self.postgres_db_password}@{self.postgres_db_host}:{self.postgres_db_port}/"
+            f"{self.postgres_db_name}"
+        )
 
     @property
     def database_url(self) -> str:
@@ -71,7 +80,6 @@ class Settings(BaseSettings):
 
             formatter = colorlog.ColoredFormatter(
                 fmt="%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(asctime)s%(reset)s %(white)s%(message)s%(reset)s",
-                datefmt="%Y-%m-%d %H:%M:%S",
                 log_colors=log_colors,
                 secondary_log_colors={},
                 style="%",
