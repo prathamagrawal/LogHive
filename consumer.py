@@ -6,7 +6,9 @@ import queue
 import threading
 from main.settings import settings
 from main.utils import log_to_db
+import typer
 
+app = typer.Typer()
 internal_logger = settings.logger
 
 
@@ -33,6 +35,7 @@ class Consumer:
             max_queue_size=100000000,  # Maximum queue size before backpressure
             max_retries=5,
             retry_delay=5,
+            fallback_consumer=False
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names
@@ -41,7 +44,7 @@ class Consumer:
         self.max_queue_size = max_queue_size
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-
+        self.fallback_consumer = fallback_consumer
         self.message_queue = queue.Queue(maxsize=max_queue_size)
         self.error_queue = queue.Queue(maxsize=max_queue_size)
         self.stop_event = threading.Event()
@@ -80,36 +83,38 @@ class Consumer:
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
-            self.channel.exchange_declare(
-                exchange="logs_exchange", exchange_type="direct", durable=True
-            )
-            self.channel.exchange_declare(
-                exchange="failure_backoff", exchange_type="direct", durable=True
-            )
-            queue_name = "failure_backoff"
-            QueueConfig.declare_queue(self.channel, queue_name)
-            self.channel.queue_bind(
-                exchange="failure_backoff",
-                queue=queue_name,
-                routing_key="failure.backoff",
-            )
-
-            if self.service_names:
-                for service_name in self.service_names:
-                    for level in ["info", "error", "warning", "debug", "critical"]:
-                        queue_name = f"{service_name}_{level}_logs"
-                        QueueConfig.declare_queue(self.channel, queue_name)
-                        self.channel.queue_bind(
-                            exchange="logs_exchange",
-                            queue=queue_name,
-                            routing_key=f"{service_name}.{level}",
-                        )
-                        self.queues.append(queue_name)
+            if not self.fallback_consumer:
+                if self.service_names:
+                    for service_name in self.service_names:
+                        for level in ["info", "error", "warning", "debug", "critical"]:
+                            queue_name = f"{service_name}_{level}_logs"
+                            QueueConfig.declare_queue(self.channel, queue_name)
+                            self.channel.queue_bind(
+                                exchange="logs_exchange",
+                                queue=queue_name,
+                                routing_key=f"{service_name}.{level}",
+                            )
+                            self.queues.append(queue_name)
+                else:
+                    queue_name = "all_logs"
+                    QueueConfig.declare_queue(self.channel, queue_name)
+                    self.channel.queue_bind(
+                        exchange="logs_exchange", queue=queue_name, routing_key="#"
+                    )
+                    self.queues.append(queue_name)
             else:
-                queue_name = "all_logs"
+                self.channel.exchange_declare(
+                    exchange="logs_exchange", exchange_type="direct", durable=True
+                )
+                self.channel.exchange_declare(
+                    exchange="failure_backoff", exchange_type="direct", durable=True
+                )
+                queue_name = "failure_backoff"
                 QueueConfig.declare_queue(self.channel, queue_name)
                 self.channel.queue_bind(
-                    exchange="logs_exchange", queue=queue_name, routing_key="#"
+                    exchange="failure_backoff",
+                    queue=queue_name,
+                    routing_key="failure.backoff",
                 )
                 self.queues.append(queue_name)
 
@@ -232,21 +237,15 @@ class Consumer:
 
     def start(self):
         """Start the scaled consumer"""
-        # Reset stop event
         self.stop_event.clear()
-
-        # Start consumer thread
         self.consumer_thread = threading.Thread(
             target=self._consumer_worker, daemon=True
         )
         self.consumer_thread.start()
-
-        # Start processor thread
         self.processor_thread = threading.Thread(
             target=self._processor_worker, daemon=True
         )
         self.processor_thread.start()
-
         internal_logger.info("Starting Consumer: ")
 
     def stop(self):
@@ -274,22 +273,26 @@ class Consumer:
             internal_logger.error(f"Error in destructor: {e}")
 
 
+@app.command()
+def run(fallback_consumer: bool = False):
+    consumer = Consumer(
+        service_names=settings.get_service_names,
+        batch_size=settings.consumer_batch_size,
+        max_queue_size=settings.queue_max_size,
+        fallback_consumer=fallback_consumer
+    )
+    try:
+        consumer.start()
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        internal_logger.info("Shutting down consumer...")
+        consumer.stop()
+    except Exception as e:
+        internal_logger.error(f"Consumer error: {str(e)}")
+        internal_logger.info("Restarting consumer in 5 seconds...")
+        time.sleep(5)
+
+
 if __name__ == "__main__":
-    while True:
-        consumer = Consumer(
-            service_names=settings.get_service_names,
-            batch_size=settings.consumer_batch_size,
-            max_queue_size=settings.queue_max_size,
-        )
-        try:
-            consumer.start()
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            internal_logger.info("Shutting down consumer...")
-            consumer.stop()
-            break
-        except Exception as e:
-            internal_logger.error(f"Consumer error: {str(e)}")
-            internal_logger.info("Restarting consumer in 5 seconds...")
-            time.sleep(5)
+    app()
