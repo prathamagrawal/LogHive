@@ -26,13 +26,13 @@ class QueueConfig:
 
 class Consumer:
     def __init__(
-        self,
-        service_names=None,
-        max_workers=10,  # Configurable thread pool size
-        batch_size=200,  # Number of messages to process in a batch
-        max_queue_size=100000000,  # Maximum queue size before backpressure
-        max_retries=5,
-        retry_delay=5,
+            self,
+            service_names=None,
+            max_workers=10,  # Configurable thread pool size
+            batch_size=200,  # Number of messages to process in a batch
+            max_queue_size=100000000,  # Maximum queue size before backpressure
+            max_retries=5,
+            retry_delay=5,
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names
@@ -43,6 +43,7 @@ class Consumer:
         self.retry_delay = retry_delay
 
         self.message_queue = queue.Queue(maxsize=max_queue_size)
+        self.error_queue = queue.Queue(maxsize=max_queue_size)
         self.stop_event = threading.Event()
         self.consumer_thread = None
         self.processor_thread = None
@@ -82,8 +83,17 @@ class Consumer:
             self.channel.exchange_declare(
                 exchange="logs_exchange", exchange_type="direct", durable=True
             )
+            self.channel.exchange_declare(
+                exchange="failure_backoff", exchange_type="direct", durable=True
+            )
+            queue_name = "failure_backoff"
+            QueueConfig.declare_queue(self.channel, queue_name)
+            self.channel.queue_bind(
+                exchange="failure_backoff",
+                queue=queue_name,
+                routing_key="failure.backoff",
+            )
 
-            self.queues.clear()
             if self.service_names:
                 for service_name in self.service_names:
                     for level in ["info", "error", "warning", "debug", "critical"]:
@@ -115,12 +125,27 @@ class Consumer:
 
     async def _process_batch(self, batch):
         """Process a batch of log messages with robust error handling"""
+        failed_messages = []
+
         for log_data in batch:
             try:
                 await log_to_db(log_data)
             except Exception as e:
-                # Log individual message processing errors
                 internal_logger.error(f"Error processing log message: {e}")
+                failed_messages.append(log_data)
+
+        if failed_messages:
+            try:
+                for failed_message in failed_messages:
+                    self.channel.basic_publish(
+                        exchange="failure_backoff",
+                        routing_key="failure.backoff",
+                        body=json.dumps(failed_message),
+                        properties=pika.BasicProperties(delivery_mode=2),
+                    )
+                internal_logger.info(f"Sent {len(failed_messages)} failed messages to failure_backoff queue")
+            except Exception as publish_error:
+                internal_logger.error(f"Failed to publish to failure_backoff: {publish_error}")
 
     def _processor_worker(self):
         """Worker method to process messages from queue in batches"""
@@ -176,19 +201,25 @@ class Consumer:
                     log_data = json.loads(body)
                     try:
                         try:
-                            self.message_queue.put_nowait(log_data)
+                            self.message_queue.put(log_data, timeout=30)  # 30 second timeout
+                            ch.basic_ack(delivery_tag=method.delivery_tag)
                         except queue.Full:
-                            internal_logger.warning(
-                                "Message queue full, dropping message"
-                            )
+                            internal_logger.warning("Message queue full, rejecting message for requeue")
+                            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                            time.sleep(0.1)
                     except Exception as queue_error:
                         internal_logger.error(f"Error queueing message: {queue_error}")
+                        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                except json.JSONDecodeError as e:
+                    internal_logger.error(f"Invalid JSON in message, discarding: {e}")
+                    ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
                 except Exception as e:
-                    internal_logger.error(f"Message parsing error: {e}")
+                    internal_logger.error(f"Unexpected error processing message: {e}")
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
             for queue_name in self.queues:
                 channel.basic_consume(
-                    queue=queue_name, on_message_callback=on_message, auto_ack=True
+                    queue=queue_name, on_message_callback=on_message, auto_ack=False
                 )
             internal_logger.info("Starting message consumption...")
             channel.start_consuming()

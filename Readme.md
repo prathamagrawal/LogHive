@@ -18,5 +18,5 @@ alembic upgrade head
 
 
 # Todo 
-1. Requeue messages in a different queue to consume in case of any failures
-2. 
+1. Requeue messages in a different queue to consume in case of any failures - Done ✅
+2. Consumer flag to turn on the failure backoff 
