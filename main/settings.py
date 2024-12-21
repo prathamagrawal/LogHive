@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     queue_max_size: int
     consumer_batch_size: int
     service_names: str
+    enable_email_monitoring: bool
+    email_host: str
+    email_port: int
+    email_sender_email: str
+    email_sender_password: str
 
     class Config:
         env_file = "../config.env"
