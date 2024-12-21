@@ -46,7 +46,7 @@ class DatabaseManager:
                     timestamp=parse_timestamp(
                         log_data.get("timestamp", datetime.utcnow())
                     ),
-                    status=log_data.get("level", "INFO"),
+                    status=log_data.get("level", ""),
                     information=str(
                         log_data.get("information", {}),
                     ),
