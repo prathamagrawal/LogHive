@@ -6,7 +6,9 @@ import queue
 import threading
 from main.settings import settings
 from main.utils import log_to_db
+import typer
 
+app = typer.Typer()
 internal_logger = settings.logger
 
 
@@ -26,13 +28,14 @@ class QueueConfig:
 
 class Consumer:
     def __init__(
-        self,
-        service_names=None,
-        max_workers=10,  # Configurable thread pool size
-        batch_size=200,  # Number of messages to process in a batch
-        max_queue_size=100000000,  # Maximum queue size before backpressure
-        max_retries=5,
-        retry_delay=5,
+            self,
+            service_names=None,
+            max_workers=10,  # Configurable thread pool size
+            batch_size=200,  # Number of messages to process in a batch
+            max_queue_size=100000000,  # Maximum queue size before backpressure
+            max_retries=5,
+            retry_delay=5,
+            fallback_consumer=False
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names
@@ -41,8 +44,9 @@ class Consumer:
         self.max_queue_size = max_queue_size
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-
+        self.fallback_consumer = fallback_consumer
         self.message_queue = queue.Queue(maxsize=max_queue_size)
+        self.error_queue = queue.Queue(maxsize=max_queue_size)
         self.stop_event = threading.Event()
         self.consumer_thread = None
         self.processor_thread = None
@@ -79,27 +83,38 @@ class Consumer:
             self.connection = pika.BlockingConnection(params)
             self.channel = self.connection.channel()
 
-            self.channel.exchange_declare(
-                exchange="logs_exchange", exchange_type="direct", durable=True
-            )
-
-            self.queues.clear()
-            if self.service_names:
-                for service_name in self.service_names:
-                    for level in ["info", "error", "warning", "debug", "critical"]:
-                        queue_name = f"{service_name}_{level}_logs"
-                        QueueConfig.declare_queue(self.channel, queue_name)
-                        self.channel.queue_bind(
-                            exchange="logs_exchange",
-                            queue=queue_name,
-                            routing_key=f"{service_name}.{level}",
-                        )
-                        self.queues.append(queue_name)
+            if not self.fallback_consumer:
+                if self.service_names:
+                    for service_name in self.service_names:
+                        for level in ["info", "error", "warning", "debug", "critical"]:
+                            queue_name = f"{service_name}_{level}_logs"
+                            QueueConfig.declare_queue(self.channel, queue_name)
+                            self.channel.queue_bind(
+                                exchange="logs_exchange",
+                                queue=queue_name,
+                                routing_key=f"{service_name}.{level}",
+                            )
+                            self.queues.append(queue_name)
+                else:
+                    queue_name = "all_logs"
+                    QueueConfig.declare_queue(self.channel, queue_name)
+                    self.channel.queue_bind(
+                        exchange="logs_exchange", queue=queue_name, routing_key="#"
+                    )
+                    self.queues.append(queue_name)
             else:
-                queue_name = "all_logs"
+                self.channel.exchange_declare(
+                    exchange="logs_exchange", exchange_type="direct", durable=True
+                )
+                self.channel.exchange_declare(
+                    exchange="failure_backoff", exchange_type="direct", durable=True
+                )
+                queue_name = "failure_backoff"
                 QueueConfig.declare_queue(self.channel, queue_name)
                 self.channel.queue_bind(
-                    exchange="logs_exchange", queue=queue_name, routing_key="#"
+                    exchange="failure_backoff",
+                    queue=queue_name,
+                    routing_key="failure.backoff",
                 )
                 self.queues.append(queue_name)
 
@@ -115,12 +130,27 @@ class Consumer:
 
     async def _process_batch(self, batch):
         """Process a batch of log messages with robust error handling"""
+        failed_messages = []
+
         for log_data in batch:
             try:
                 await log_to_db(log_data)
             except Exception as e:
-                # Log individual message processing errors
                 internal_logger.error(f"Error processing log message: {e}")
+                failed_messages.append(log_data)
+
+        if failed_messages:
+            try:
+                for failed_message in failed_messages:
+                    self.channel.basic_publish(
+                        exchange="failure_backoff",
+                        routing_key="failure.backoff",
+                        body=json.dumps(failed_message),
+                        properties=pika.BasicProperties(delivery_mode=2),
+                    )
+                internal_logger.info(f"Sent {len(failed_messages)} failed messages to failure_backoff queue")
+            except Exception as publish_error:
+                internal_logger.error(f"Failed to publish to failure_backoff: {publish_error}")
 
     def _processor_worker(self):
         """Worker method to process messages from queue in batches"""
@@ -176,19 +206,25 @@ class Consumer:
                     log_data = json.loads(body)
                     try:
                         try:
-                            self.message_queue.put_nowait(log_data)
+                            self.message_queue.put(log_data, timeout=30)  # 30 second timeout
+                            ch.basic_ack(delivery_tag=method.delivery_tag)
                         except queue.Full:
-                            internal_logger.warning(
-                                "Message queue full, dropping message"
-                            )
+                            internal_logger.warning("Message queue full, rejecting message for requeue")
+                            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                            time.sleep(0.1)
                     except Exception as queue_error:
                         internal_logger.error(f"Error queueing message: {queue_error}")
+                        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                except json.JSONDecodeError as e:
+                    internal_logger.error(f"Invalid JSON in message, discarding: {e}")
+                    ch.basic_reject(delivery_tag=method.delivery_tag, requeue=False)
                 except Exception as e:
-                    internal_logger.error(f"Message parsing error: {e}")
+                    internal_logger.error(f"Unexpected error processing message: {e}")
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
             for queue_name in self.queues:
                 channel.basic_consume(
-                    queue=queue_name, on_message_callback=on_message, auto_ack=True
+                    queue=queue_name, on_message_callback=on_message, auto_ack=False
                 )
             internal_logger.info("Starting message consumption...")
             channel.start_consuming()
@@ -201,21 +237,15 @@ class Consumer:
 
     def start(self):
         """Start the scaled consumer"""
-        # Reset stop event
         self.stop_event.clear()
-
-        # Start consumer thread
         self.consumer_thread = threading.Thread(
             target=self._consumer_worker, daemon=True
         )
         self.consumer_thread.start()
-
-        # Start processor thread
         self.processor_thread = threading.Thread(
             target=self._processor_worker, daemon=True
         )
         self.processor_thread.start()
-
         internal_logger.info("Starting Consumer: ")
 
     def stop(self):
@@ -243,22 +273,26 @@ class Consumer:
             internal_logger.error(f"Error in destructor: {e}")
 
 
+@app.command()
+def run(fallback_consumer: bool = False):
+    consumer = Consumer(
+        service_names=settings.get_service_names,
+        batch_size=settings.consumer_batch_size,
+        max_queue_size=settings.queue_max_size,
+        fallback_consumer=fallback_consumer
+    )
+    try:
+        consumer.start()
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        internal_logger.info("Shutting down consumer...")
+        consumer.stop()
+    except Exception as e:
+        internal_logger.error(f"Consumer error: {str(e)}")
+        internal_logger.info("Restarting consumer in 5 seconds...")
+        time.sleep(5)
+
+
 if __name__ == "__main__":
-    while True:
-        consumer = Consumer(
-            service_names=settings.get_service_names,
-            batch_size=settings.consumer_batch_size,
-            max_queue_size=settings.queue_max_size,
-        )
-        try:
-            consumer.start()
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            internal_logger.info("Shutting down consumer...")
-            consumer.stop()
-            break
-        except Exception as e:
-            internal_logger.error(f"Consumer error: {str(e)}")
-            internal_logger.info("Restarting consumer in 5 seconds...")
-            time.sleep(5)
+    app()
