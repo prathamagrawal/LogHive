@@ -28,14 +28,14 @@ class QueueConfig:
 
 class Consumer:
     def __init__(
-            self,
-            service_names=None,
-            max_workers=10,  # Configurable thread pool size
-            batch_size=200,  # Number of messages to process in a batch
-            max_queue_size=100000000,  # Maximum queue size before backpressure
-            max_retries=5,
-            retry_delay=5,
-            fallback_consumer=False
+        self,
+        service_names=None,
+        max_workers=10,  # Configurable thread pool size
+        batch_size=200,  # Number of messages to process in a batch
+        max_queue_size=100000000,  # Maximum queue size before backpressure
+        max_retries=5,
+        retry_delay=5,
+        fallback_consumer=False,
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names
@@ -148,9 +148,13 @@ class Consumer:
                         body=json.dumps(failed_message),
                         properties=pika.BasicProperties(delivery_mode=2),
                     )
-                internal_logger.info(f"Sent {len(failed_messages)} failed messages to failure_backoff queue")
+                internal_logger.info(
+                    f"Sent {len(failed_messages)} failed messages to failure_backoff queue"
+                )
             except Exception as publish_error:
-                internal_logger.error(f"Failed to publish to failure_backoff: {publish_error}")
+                internal_logger.error(
+                    f"Failed to publish to failure_backoff: {publish_error}"
+                )
 
     def _processor_worker(self):
         """Worker method to process messages from queue in batches"""
@@ -206,11 +210,17 @@ class Consumer:
                     log_data = json.loads(body)
                     try:
                         try:
-                            self.message_queue.put(log_data, timeout=30)  # 30 second timeout
+                            self.message_queue.put(
+                                log_data, timeout=30
+                            )  # 30 second timeout
                             ch.basic_ack(delivery_tag=method.delivery_tag)
                         except queue.Full:
-                            internal_logger.warning("Message queue full, rejecting message for requeue")
-                            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                            internal_logger.warning(
+                                "Message queue full, rejecting message for requeue"
+                            )
+                            ch.basic_nack(
+                                delivery_tag=method.delivery_tag, requeue=True
+                            )
                             time.sleep(0.1)
                     except Exception as queue_error:
                         internal_logger.error(f"Error queueing message: {queue_error}")
@@ -279,7 +289,7 @@ def run(fallback_consumer: bool = False):
         service_names=settings.get_service_names,
         batch_size=settings.consumer_batch_size,
         max_queue_size=settings.queue_max_size,
-        fallback_consumer=fallback_consumer
+        fallback_consumer=fallback_consumer,
     )
     try:
         consumer.start()

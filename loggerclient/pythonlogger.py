@@ -65,7 +65,7 @@ class LoggerClient:
                         self._channel.exchange_declare(
                             exchange="logs_exchange",
                             exchange_type="direct",
-                            durable=True
+                            durable=True,
                         )
 
                         log_levels = ["info", "error", "warning"]
@@ -78,27 +78,38 @@ class LoggerClient:
                                 routing_key=f"{self.service_name}.{level}",
                             )
                         self._reconnect_delay = 1
-                        internal_logger.info(f"Logger connected for service: {self.service_name}")
+                        internal_logger.info(
+                            f"Logger connected for service: {self.service_name}"
+                        )
                         return
 
                     except pika.exceptions.AMQPConnectionError as e:
                         retry_count += 1
                         if retry_count == max_retries:
                             raise e
-                        time.sleep(min(self._reconnect_delay * (2 ** retry_count), self._max_reconnect_delay))
+                        time.sleep(
+                            min(
+                                self._reconnect_delay * (2**retry_count),
+                                self._max_reconnect_delay,
+                            )
+                        )
 
             except Exception as e:
                 internal_logger.error(f"Failed to connect to RabbitMQ: {str(e)}")
                 self._connection = None
                 self._channel = None
-                self._reconnect_delay = min(self._reconnect_delay * 2, self._max_reconnect_delay)
+                self._reconnect_delay = min(
+                    self._reconnect_delay * 2, self._max_reconnect_delay
+                )
 
     def _monitor_connection(self):
         """Monitor connection health and reconnect if necessary"""
         while self._should_reconnect:
             try:
                 if not self._connection or self._connection.is_closed:
-                    internal_logger.warning("Connection lost, attempting to reconnect...")
+                    internal_logger.warning(
+                        "Connection lost, attempting to reconnect..."
+                    )
                     self._setup_connection()
                 elif self._connection.is_open:
                     try:
@@ -146,17 +157,28 @@ class LoggerClient:
                         properties=properties,
                     )
 
-                    internal_logger.info(f"Published message with routing key: {routing_key}")
+                    internal_logger.info(
+                        f"Published message with routing key: {routing_key}"
+                    )
                     return True
 
-            except (pika.exceptions.ConnectionClosed,
-                    pika.exceptions.ChannelClosed,
-                    pika.exceptions.AMQPConnectionError) as e:
+            except (
+                pika.exceptions.ConnectionClosed,
+                pika.exceptions.ChannelClosed,
+                pika.exceptions.AMQPConnectionError,
+            ) as e:
                 retry_count += 1
                 if retry_count == max_retries:
-                    internal_logger.error(f"Failed to send log after {max_retries} attempts: {str(e)}")
+                    internal_logger.error(
+                        f"Failed to send log after {max_retries} attempts: {str(e)}"
+                    )
                     return False
-                time.sleep(min(self._reconnect_delay * (2 ** retry_count), self._max_reconnect_delay))
+                time.sleep(
+                    min(
+                        self._reconnect_delay * (2**retry_count),
+                        self._max_reconnect_delay,
+                    )
+                )
                 self._setup_connection()
 
             except Exception as e:

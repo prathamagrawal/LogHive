@@ -116,10 +116,10 @@ def send_email(recipient_emails, subject, message, information):
         for recipient in recipient_emails:
             msg = EmailMessage()
             # Set HTML content with the proper subtype
-            msg.add_alternative(body, subtype='html')
-            msg['Subject'] = subject
-            msg['From'] = settings.email_sender_email
-            msg['To'] = recipient
+            msg.add_alternative(body, subtype="html")
+            msg["Subject"] = subject
+            msg["From"] = settings.email_sender_email
+            msg["To"] = recipient
             server.send_message(msg)
         internal_logger.info("Emails sent successfully!")
 
