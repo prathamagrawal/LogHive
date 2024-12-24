@@ -4,8 +4,8 @@ import time
 import asyncio
 import queue
 import threading
-from main.settings import settings
-from main.utils import log_to_db
+from loghive.main.settings import settings
+from loghive.main.utils import log_to_db
 import typer
 
 app = typer.Typer()

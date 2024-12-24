@@ -4,4 +4,7 @@ __pycache__
 /venv
 .idea/
 
+build/
+loghive.egg-info/
+
 secrets.txt

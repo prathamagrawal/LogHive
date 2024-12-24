@@ -3,7 +3,7 @@ import json
 import threading
 import time
 from datetime import datetime
-from main.settings import settings
+from loghive.main.settings import settings
 
 internal_logger = settings.logger
 

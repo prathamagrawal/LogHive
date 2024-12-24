@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     email_sender_password: str
 
     class Config:
-        env_file = "../config.env"
+        env_file = "../../config.env"
 
     @property
     def get_sync_database_url(self) -> str:
