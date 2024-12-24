@@ -19,8 +19,11 @@ setup(
         "SQLAlchemy==2.0.36",
         "typer==0.13.1",
         "typing_extensions==4.12.2",
+        "greenlet==3.1.1"
     ],
     author="Pratham Agrawal",
-    author_email="prathamagrawal1205@gmail.com",
-    description="",
+    author_email="prathamagrawal1205@example.com",
+    description="Short description",
+    long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
 )

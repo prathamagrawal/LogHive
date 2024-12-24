@@ -2,7 +2,7 @@ import os
 import traceback
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from loghive.producer.pythonlogger import LoggerClient
+from loghive.logger.rabbitmqlogger import LoggerClient
 
 app = FastAPI()
 logger = LoggerClient("fastapi_service")

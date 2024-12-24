@@ -1,3 +1,3 @@
-from .rabbitmqconsumer import Consumer
+from .rabbitmqconsumer import Consumer, start_consumer
 
-__all__ = ["Consumer"]
+__all__ = ["Consumer", "start_consumer"]

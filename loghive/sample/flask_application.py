@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request
-from loghive.producer.pythonlogger import LoggerClient
+from loghive.logger.rabbitmqlogger import LoggerClient
 import os
 import traceback
 
