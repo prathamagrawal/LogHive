@@ -1,6 +1,6 @@
 import json
 import smtplib
-from main.settings import internal_logger, settings
+from loghive.main.settings import internal_logger, settings
 from email.message import EmailMessage
 
 

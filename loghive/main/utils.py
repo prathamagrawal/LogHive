@@ -1,7 +1,6 @@
-import asyncio
-from main.settings import settings, internal_logger
-from main.database import DatabaseManager
-from main.sendemail import send_email
+from loghive.main.settings import settings, internal_logger
+from loghive.main.database import DatabaseManager
+from loghive.main.sendemail import send_email
 
 
 async def log_to_db(log_data):

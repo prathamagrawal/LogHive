@@ -3,7 +3,7 @@ import json
 import threading
 import time
 from datetime import datetime
-from main.settings import settings
+from loghive.main.settings import settings
 
 internal_logger = settings.logger
 
@@ -89,7 +89,7 @@ class LoggerClient:
                             raise e
                         time.sleep(
                             min(
-                                self._reconnect_delay * (2**retry_count),
+                                self._reconnect_delay * (2 ** retry_count),
                                 self._max_reconnect_delay,
                             )
                         )
@@ -124,6 +124,17 @@ class LoggerClient:
 
     def log(self, level, message, information=None):
         """Send log message with retry logic"""
+
+        log_functions = {
+            "DEBUG": internal_logger.debug,
+            "INFO": internal_logger.info,
+            "WARNING": internal_logger.warning,
+            "ERROR": internal_logger.error,
+            "CRITICAL": internal_logger.critical
+        }
+
+        log_functions[level](f"{message} {information if information else ''}")
+
         max_retries = 3
         retry_count = 0
 
@@ -163,9 +174,9 @@ class LoggerClient:
                     return True
 
             except (
-                pika.exceptions.ConnectionClosed,
-                pika.exceptions.ChannelClosed,
-                pika.exceptions.AMQPConnectionError,
+                    pika.exceptions.ConnectionClosed,
+                    pika.exceptions.ChannelClosed,
+                    pika.exceptions.AMQPConnectionError,
             ) as e:
                 retry_count += 1
                 if retry_count == max_retries:
@@ -175,7 +186,7 @@ class LoggerClient:
                     return False
                 time.sleep(
                     min(
-                        self._reconnect_delay * (2**retry_count),
+                        self._reconnect_delay * (2 ** retry_count),
                         self._max_reconnect_delay,
                     )
                 )

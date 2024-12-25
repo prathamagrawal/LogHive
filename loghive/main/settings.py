@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     queue_port: str
     queue_max_size: int
     consumer_batch_size: int
-    service_names: str
     enable_email_monitoring: bool
     email_host: str
     email_port: int
@@ -30,7 +29,7 @@ class Settings(BaseSettings):
     email_sender_password: str
 
     class Config:
-        env_file = "../config.env"
+        env_file = "../../config.env"
 
     @property
     def get_sync_database_url(self) -> str:
@@ -110,7 +109,6 @@ class Settings(BaseSettings):
 
         level = log_level_map.get(self.log_level.upper(), logging.INFO)
         configure_logger(level)
-
         return internal_logger
 
     @property

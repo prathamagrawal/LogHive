@@ -1,4 +1,4 @@
-from main.models import LoggingDetails
+from loghive.main.models import LoggingDetails
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 

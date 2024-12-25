@@ -4,11 +4,9 @@ import time
 import asyncio
 import queue
 import threading
-from main.settings import settings
-from main.utils import log_to_db
-import typer
+from loghive.main.settings import settings
+from loghive.main.utils import log_to_db
 
-app = typer.Typer()
 internal_logger = settings.logger
 
 
@@ -28,14 +26,14 @@ class QueueConfig:
 
 class Consumer:
     def __init__(
-        self,
-        service_names=None,
-        max_workers=10,  # Configurable thread pool size
-        batch_size=200,  # Number of messages to process in a batch
-        max_queue_size=100000000,  # Maximum queue size before backpressure
-        max_retries=5,
-        retry_delay=5,
-        fallback_consumer=False,
+            self,
+            service_names=None,
+            max_workers=10,  # Configurable thread pool size
+            batch_size=200,  # Number of messages to process in a batch
+            max_queue_size=100000000,  # Maximum queue size before backpressure
+            max_retries=5,
+            retry_delay=5,
+            fallback_consumer=False,
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names
@@ -283,14 +281,8 @@ class Consumer:
             internal_logger.error(f"Error in destructor: {e}")
 
 
-@app.command()
-def run(fallback_consumer: bool = False):
-    consumer = Consumer(
-        service_names=settings.get_service_names,
-        batch_size=settings.consumer_batch_size,
-        max_queue_size=settings.queue_max_size,
-        fallback_consumer=fallback_consumer,
-    )
+def start_consumer(service_names: list) -> None:
+    consumer = Consumer(service_names=service_names)
     try:
         consumer.start()
         while True:
@@ -302,7 +294,3 @@ def run(fallback_consumer: bool = False):
         internal_logger.error(f"Consumer error: {str(e)}")
         internal_logger.info("Restarting consumer in 5 seconds...")
         time.sleep(5)
-
-
-if __name__ == "__main__":
-    app()

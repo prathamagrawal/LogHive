@@ -1,7 +1,10 @@
 __pycache__
 */__pycache__/
-
+arc/
 /venv
 .idea/
+
+build/
+loghive.egg-info/
 
 secrets.txt
