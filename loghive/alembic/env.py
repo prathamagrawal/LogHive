@@ -1,13 +1,15 @@
+import sys
+from pathlib import Path
 from logging.config import fileConfig
-
 from sqlalchemy import create_engine
 from sqlalchemy import pool
-from loghive.main.settings import settings
 from alembic import context
 from loghive.main.models import LoggingDetails
+from loghive.main.settings import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
+sys.path.append(str(Path(__file__).parents[2]))
 config = context.config
 
 # Interpret the config file for Python logging.

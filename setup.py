@@ -4,6 +4,15 @@ setup(
     name="loghive",
     version="v1.0",
     packages=find_packages(),
+    package_data={
+        'loghive': [
+            'alembic.ini',
+            'alembic/*',
+            'alembic/versions/*',
+            'alembic/script.py.mako'
+        ]
+    },
+    include_package_data=True,
     install_requires=[
         "alembic==1.14.0",
         "annotated-types==0.7.0",

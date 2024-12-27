@@ -16,3 +16,5 @@ class LoggingDetails(Base):
 
     # 2nd migration
     information = Column(String, nullable=True)
+
+    # 3rd Migration
