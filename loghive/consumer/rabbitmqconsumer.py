@@ -26,14 +26,14 @@ class QueueConfig:
 
 class Consumer:
     def __init__(
-            self,
-            service_names=None,
-            max_workers=10,  # Configurable thread pool size
-            batch_size=200,  # Number of messages to process in a batch
-            max_queue_size=100000000,  # Maximum queue size before backpressure
-            max_retries=5,
-            retry_delay=5,
-            fallback_consumer=False,
+        self,
+        service_names=None,
+        max_workers=10,  # Configurable thread pool size
+        batch_size=200,  # Number of messages to process in a batch
+        max_queue_size=100000000,  # Maximum queue size before backpressure
+        max_retries=5,
+        retry_delay=5,
+        fallback_consumer=False,
     ):
         self.rabbitmq_url = settings.get_queue_url
         self.service_names = service_names

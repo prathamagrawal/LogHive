@@ -89,7 +89,7 @@ class LoggerClient:
                             raise e
                         time.sleep(
                             min(
-                                self._reconnect_delay * (2 ** retry_count),
+                                self._reconnect_delay * (2**retry_count),
                                 self._max_reconnect_delay,
                             )
                         )
@@ -130,7 +130,7 @@ class LoggerClient:
             "INFO": internal_logger.info,
             "WARNING": internal_logger.warning,
             "ERROR": internal_logger.error,
-            "CRITICAL": internal_logger.critical
+            "CRITICAL": internal_logger.critical,
         }
 
         log_functions[level](f"{message} {information if information else ''}")
@@ -174,9 +174,9 @@ class LoggerClient:
                     return True
 
             except (
-                    pika.exceptions.ConnectionClosed,
-                    pika.exceptions.ChannelClosed,
-                    pika.exceptions.AMQPConnectionError,
+                pika.exceptions.ConnectionClosed,
+                pika.exceptions.ChannelClosed,
+                pika.exceptions.AMQPConnectionError,
             ) as e:
                 retry_count += 1
                 if retry_count == max_retries:
@@ -186,7 +186,7 @@ class LoggerClient:
                     return False
                 time.sleep(
                     min(
-                        self._reconnect_delay * (2 ** retry_count),
+                        self._reconnect_delay * (2**retry_count),
                         self._max_reconnect_delay,
                     )
                 )

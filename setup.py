@@ -5,11 +5,11 @@ setup(
     version="v1.0",
     packages=find_packages(),
     package_data={
-        'loghive': [
-            'alembic.ini',
-            'alembic/*',
-            'alembic/versions/*',
-            'alembic/script.py.mako'
+        "loghive": [
+            "alembic.ini",
+            "alembic/*",
+            "alembic/versions/*",
+            "alembic/script.py.mako",
         ]
     },
     include_package_data=True,
@@ -28,7 +28,7 @@ setup(
         "SQLAlchemy==2.0.36",
         "typer==0.13.1",
         "typing_extensions==4.12.2",
-        "greenlet==3.1.1"
+        "greenlet==3.1.1",
     ],
     author="Pratham Agrawal",
     author_email="prathamagrawal1205@example.com",
