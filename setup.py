@@ -1,8 +1,20 @@
 from setuptools import setup, find_packages
 
+
+def get_reqs():
+    """
+    The get_external_reqs function reads the requirements.txt file and returns a list of strings,
+    where each string is an external requirement for this project.
+
+    :return: A list of dependencies
+    """
+    with open("requirements.txt", "r") as f:
+        return [x for x in f.read().split("\n") if x]
+
+
 setup(
     name="loghive",
-    version="v1.0",
+    version="1.0.0",
     packages=find_packages(),
     package_data={
         "loghive": [
@@ -12,27 +24,22 @@ setup(
             "alembic/script.py.mako",
         ]
     },
+    install_requires=get_reqs(),
     include_package_data=True,
-    install_requires=[
-        "alembic==1.14.0",
-        "annotated-types==0.7.0",
-        "anyio==4.6.2.post1",
-        "asyncpg==0.30.0",
-        "black==24.10.0",
-        "colorlog==6.9.0",
-        "pika==1.3.2",
-        "psycopg2==2.9.10",
-        "pydantic==2.9.2",
-        "pydantic-settings==2.6.1",
-        "pydantic_core==2.23.4",
-        "SQLAlchemy==2.0.36",
-        "typer==0.13.1",
-        "typing_extensions==4.12.2",
-        "greenlet==3.1.1",
+    classifiers=[
+        "License :: Proprietary",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Operating System :: OS Independent",
     ],
     author="Pratham Agrawal",
     author_email="prathamagrawal1205@example.com",
-    description="Short description",
+    description="A powerful, extensible Python logging library that enables distributed log collection across multiple Python servers with support for multiple message brokers and asynchronous database operations.",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
 )

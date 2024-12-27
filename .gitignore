@@ -8,3 +8,29 @@ build/
 loghive.egg-info/
 
 secrets.txt
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Distribution / Packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environments
+.env/
+.venv/
+
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+*.so
+*.dll
+
+# Logs and database files
+*.log
+*.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
