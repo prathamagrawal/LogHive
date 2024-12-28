@@ -1,4 +1,4 @@
-# Distributed Logger 🚀
+<h1 align="center">Loghive - Distributed Logger 🚀</h1> 
 
 A robust, scalable Python logging library that enables distributed log collection with advanced connection management,
 automatic reconnection, and thread-safe logging capabilities. 🌟
@@ -28,44 +28,48 @@ automatic reconnection, and thread-safe logging capabilities. 🌟
 ### Logger Client Features 🔧
 
 - **Thread-Safe Operations**:
-  - 🔒 Thread-safe logging with mutex locks
-  - 👥 Concurrent access handling
-  - ✅ Safe connection management
+    - 🔒 Thread-safe logging with mutex locks
+    - 👥 Concurrent access handling
+    - ✅ Safe connection management
 - **Robust Connection Management**:
-  - 🔄 Automatic reconnection with exponential backoff
-  - 🩺 Connection health monitoring
-  - ⏱️ Configurable heartbeat (600 seconds)
-  - ⏳ Connection timeout protection (300 seconds)
-  - 🕒 Socket timeout (10 seconds)
+    - 🔄 Automatic reconnection with exponential backoff
+    - 🩺 Connection health monitoring
+    - ⏱️ Configurable heartbeat (600 seconds)
+    - ⏳ Connection timeout protection (300 seconds)
+    - 🕒 Socket timeout (10 seconds)
 - **Reliable Message Delivery**:
-  - 📜 Durable message queues
-  - 💾 Message persistence
-  - ✅ Delivery confirmation
-  - 🔁 Automatic retry on failure
+    - 📜 Durable message queues
+    - 💾 Message persistence
+    - ✅ Delivery confirmation
+    - 🔁 Automatic retry on failure
 - **Flexible Log Routing**:
-  - 🛠️ Service-specific routing
-  - 📊 Log level-based queues
-  - 🧩 Dynamic queue declaration
-  - 🔗 Direct exchange support
+    - 🛠️ Service-specific routing
+    - 📊 Log level-based queues
+    - 🧩 Dynamic queue declaration
+    - 🔗 Direct exchange support
 
 ### Consumer Features 🛡️
 
 - **Advanced Message Queue Management**:
-  - ⏳ Configurable message TTL (7 days default) - Messages automatically expire after a set time period to prevent queue
-    overflow.
-  - 📏 Maximum queue length limits - Set hard limits on queue size to protect system resources and maintain performance.
-  - 💪 Backpressure handling - Automatically manages message flow when the system is under heavy load to prevent crashes.
+    - ⏳ Configurable message TTL (7 days default) - Messages automatically expire after a set time period to prevent
+      queue
+      overflow.
+    - 📏 Maximum queue length limits - Set hard limits on queue size to protect system resources and maintain
+      performance.
+    - 💪 Backpressure handling - Automatically manages message flow when the system is under heavy load to prevent
+      crashes.
 - **Scalable Processing**:
-  - 🧵 Multi-threaded message processing - Parallel processing of messages across multiple threads for improved
-    throughput.
-  - 📦 Batch processing support - Groups messages into batches for efficient bulk processing and reduced database load.
-  - ⚙️ Configurable worker pool - Adjust the number of worker threads based on your system's capacity and requirements.
+    - 🧵 Multi-threaded message processing - Parallel processing of messages across multiple threads for improved
+      throughput.
+    - 📦 Batch processing support - Groups messages into batches for efficient bulk processing and reduced database load.
+    - ⚙️ Configurable worker pool - Adjust the number of worker threads based on your system's capacity and
+      requirements.
 - **Error Recovery**:
-  - 📥 Failure backoff queue - Stores failed messages separately for retry with exponential backoff to prevent system
-    overload.
-  - 🔁 Automatic retry mechanism - Intelligently retries failed operations with configurable attempts and delays.
-  - ✅ JSON validation - Ensures message integrity by validating JSON structure before processing to prevent data
-    corruption.
+    - 📥 Failure backoff queue - Stores failed messages separately for retry with exponential backoff to prevent system
+      overload.
+    - 🔁 Automatic retry mechanism - Intelligently retries failed operations with configurable attempts and delays.
+    - ✅ JSON validation - Ensures message integrity by validating JSON structure before processing to prevent data
+      corruption.
 
 ---
 
@@ -120,8 +124,8 @@ from loghive.logger.rabbitmqlogger import LoggerClient
 
 # Initialize the logger
 logger = LoggerClient(
-  service_name="my-service",
-  rabbitmq_url="amqp://localhost:5672/"
+    service_name="my-service",
+    rabbitmq_url="amqp://localhost:5672/"
 )
 
 # Log messages with different levels
@@ -137,9 +141,9 @@ from loghive.consumer.rabbitmqconsumer import start_consumer
 from loghive.main.settings import internal_logger
 
 try:
-  start_consumer(["flask_service"])  # replace with your service names
+    start_consumer(["flask_service"])  # replace with your service names
 except Exception as e:
-  internal_logger.error(f"Error faced while starting consumer: {e}")
+    internal_logger.error(f"Error faced while starting consumer: {e}")
 ```
 
 The internal_logger can be imported from ```loghive.main.settings```, this will be behave like a normal logger and will
@@ -163,9 +167,9 @@ not be publishing the message to rabbitmq.
 
 ```python
 connection_params = {
-  "heartbeat": 600,  # Heartbeat interval in seconds
-  "blocked_connection_timeout": 300,  # Connection timeout in seconds
-  "socket_timeout": 10,  # Socket timeout in seconds
+    "heartbeat": 600,  # Heartbeat interval in seconds
+    "blocked_connection_timeout": 300,  # Connection timeout in seconds
+    "socket_timeout": 10,  # Socket timeout in seconds
 }
 ```
 
@@ -173,8 +177,8 @@ connection_params = {
 
 ```python
 QUEUE_ARGUMENTS = {
-  "x-message-ttl": 604800000,  # 7 days in milliseconds
-  "x-max-length": 1000000,  # Maximum queue size
+    "x-message-ttl": 604800000,  # 7 days in milliseconds
+    "x-max-length": 1000000,  # Maximum queue size
 }
 ```
 
@@ -237,8 +241,8 @@ QUEUE_ARGUMENTS = {
 
 ```python
 logger = LoggerClient(
-  service_name="unique-service-name",
-  rabbitmq_url="amqp://username:password@host:port/vhost"
+    service_name="unique-service-name",
+    rabbitmq_url="amqp://username:password@host:port/vhost"
 )
 ```
 
@@ -253,23 +257,23 @@ logger.close()
 
 ```python
 try:
-  # Your application code
-  logger.log("INFO", "Operation successful")
+    # Your application code
+    logger.log("INFO", "Operation successful")
 except Exception as e:
-  logger.log("ERROR", "Operation failed", {"error": str(e)})
+    logger.log("ERROR", "Operation failed", {"error": str(e)})
 ```
 
 4. **Structured Logging**:
 
 ```python
 logger.log(
-  "INFO",
-  "User action completed",
-  {
-    "user_id": "123",
-    "action": "checkout",
-    "duration_ms": 150
-  }
+    "INFO",
+    "User action completed",
+    {
+        "user_id": "123",
+        "action": "checkout",
+        "duration_ms": 150
+    }
 )
 ```
 
