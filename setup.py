@@ -23,7 +23,7 @@ if os.path.exists(readme_path):
 
 setup(
     name="loghive",
-    version="1.0.0b2",
+    version="1.0.0b3",
     packages=find_packages(),
     package_data={
         "loghive": [
