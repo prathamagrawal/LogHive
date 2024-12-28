@@ -1,7 +1,6 @@
 import os
 from setuptools import setup, find_packages
 
-
 base_dir = os.path.abspath(os.path.dirname(__file__))
 readme_path = os.path.join(base_dir, "README.md")
 long_description = ""
@@ -11,7 +10,7 @@ if os.path.exists(readme_path):
 
 setup(
     name="loghive",
-    version="1.0.0b5",
+    version="1.0.0b6",
     packages=find_packages(),
     package_data={
         "loghive": [
@@ -24,7 +23,8 @@ setup(
         ]
     },
     install_requires=[
-        "alembic==1.14.0",
+        "alembic>=1.8.1,<1.14.0",
+        "SQLAlchemy==2.0.36",
         "annotated-types==0.7.0",
         "anyio==4.6.2.post1",
         "asyncpg==0.30.0",
@@ -67,7 +67,6 @@ setup(
         "rich==13.9.4",
         "shellingham==1.5.4",
         "sniffio==1.3.1",
-        "SQLAlchemy==2.0.36",
         "starlette==0.41.3",
         "tomli==2.1.0",
         "typer==0.13.1",
