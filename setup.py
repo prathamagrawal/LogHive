@@ -1,15 +1,18 @@
 from setuptools import setup, find_packages
 import os
 
-
 def get_reqs():
     base_dir = os.path.abspath(os.path.dirname(__file__))
     req_path = os.path.join(base_dir, "requirements.txt")
     if os.path.exists(req_path):
-        with open(req_path, "r") as f:
-            return [x for x in f.read().split("\n") if x]
+        try:
+            with open(req_path, "r") as f:
+                return [x.strip() for x in f.read().splitlines() if x.strip() and not x.startswith('#')]
+        except Exception as e:
+            print(f"Error reading requirements.txt: {e}")
+            return []
+    print(f"Requirements file not found at: {req_path}")
     return []
-
 
 base_dir = os.path.abspath(os.path.dirname(__file__))
 readme_path = os.path.join(base_dir, "README.md")
@@ -29,9 +32,12 @@ setup(
             "alembic/versions/*",
             "alembic/script.py.mako",
             "requirements.txt",
-            "Readme.md"
+            "README.md"
         ]
     },
+    data_files=[
+        ('', ['requirements.txt']),  # Include requirements.txt in the root
+    ],
     install_requires=get_reqs(),
     include_package_data=True,
     author="Pratham Agrawal",
