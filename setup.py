@@ -4,13 +4,14 @@ from setuptools import setup, find_packages
 base_dir = os.path.abspath(os.path.dirname(__file__))
 readme_path = os.path.join(base_dir, "README.md")
 long_description = ""
+
 if os.path.exists(readme_path):
     with open(readme_path, "r", encoding="utf-8") as f:
         long_description = f.read()
 
 setup(
     name="loghive",
-    version="1.0.0b6",
+    version="1.0.0b7",
     packages=find_packages(),
     package_data={
         "loghive": [
